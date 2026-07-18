@@ -1,6 +1,6 @@
 // app/auth/confirm/route.js
 import { NextResponse } from 'next/server'
-import { createClient } from '@/utils/supabase/server'
+import { createClient } from '@/components/supabase/server'
 
 export async function GET(request) {
     const { searchParams } = new URL(request.url)
