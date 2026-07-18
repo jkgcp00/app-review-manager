@@ -11,8 +11,6 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { loadGoogleLocationsFromDB, syncAllLinkedAccounts } from "@/lib/serveractions/googleAuth"
-import { SignOutButton } from "@/components/sign-out-button"
-import Loading from "@/components/loading"
 
 // Standard setup templates used for clean local initialization
 const createDefaultConfig = () => ({
@@ -146,23 +144,17 @@ export default function GBPConfigurationDashboard() {
     }
 
     return (
-        <div className="container mx-auto py-8 max-w-5xl space-y-8 px-4">
-            {/* <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border pb-6"> */}
-            <div className="flex flex-row items-center justify-between gap-4 border-b border-border pb-6">
-                <div className="space-y-1">
-                    <h1 className="text-3xl font-bold tracking-tight">SmbFlo Sync</h1>
-                    <p className="text-muted-foreground text-sm">
-                        Click location to manage its reviews
-                    </p>
-                    {/* <Button onClick={async () => await syncAllLinkedAccounts()}>Sync all accounts</Button> */}
-
-                </div>
-                <SignOutButton />
+        <div className="container mx-auto py-8 max-w-5xl space-y-8">
+            <div className="space-y-1">
+                <h1 className="text-3xl font-bold tracking-tight">Google Business Profile Sync</h1>
+                <p className="text-muted-foreground text-sm">
+                    Click directly on any location row below to manage its active review routing configurations inside local state.
+                </p>
+                <Button onClick={async() => await syncAllLinkedAccounts()}>Sync all accounts</Button>
             </div>
 
             {
-                !accounts ? <Loading info={'Account details'}/>
-                :
+                !accounts ? <><p>Loading...</p></> :
                     accounts.map((account) => {
                         const accountId = account.name?.split('/')[1] || ""
 
@@ -261,7 +253,7 @@ export default function GBPConfigurationDashboard() {
                                                                                         <Star key={i} className={`h-4 w-4 ${i < row.count ? "fill-current" : "text-muted/20"}`} />
                                                                                     ))}
                                                                                 </div> */}
-                                                                                <div className="flex flex-col sm:flex-row items-center gap-1.5">
+                                                                                <div className="flex items-center gap-1.5">
                                                                                     <div className="flex text-emerald-600">
                                                                                         {Array.from({ length: 5 }).map((_, i) => (
                                                                                             <Star key={i} className={`h-4 w-4 ${i < row.count ? "fill-current" : ""}`} />
