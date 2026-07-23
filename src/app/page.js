@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { ExternalLink, Building2, ChevronDown, ChevronUp, Save, Star, MessageSquare } from "lucide-react"
+import { ExternalLink, Building2, ChevronDown, ChevronUp, Save, Star, MessageSquare, Sparkles } from "lucide-react"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -13,6 +13,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { loadGoogleLocationsFromDB, syncAllLinkedAccounts } from "@/lib/serveractions/googleAuth"
 import { SignOutButton } from "@/components/sign-out-button"
 import Loading from "@/components/loading"
+import Link from "next/link"
 
 // Standard setup templates used for clean local initialization
 const createDefaultConfig = () => ({
@@ -43,7 +44,7 @@ export default function GBPConfigurationDashboard() {
         const loadData = async () => {
             // const data = await syncAllLinkedAccounts();
             const data = await loadGoogleLocationsFromDB();
-            console.log('Data: ', JSON.stringify(data));
+            // console.log('Data: ', JSON.stringify(data));
             setAccounts(data);
         }
 
@@ -62,7 +63,7 @@ export default function GBPConfigurationDashboard() {
                 },
             }
         })
-        console.log('Config: ', (allConfigurations));
+        // console.log('Config: ', (allConfigurations));
     }
 
     const handleRowClick = (locationName) => {
@@ -103,8 +104,8 @@ export default function GBPConfigurationDashboard() {
             return copy
         })
 
-        console.log("Current App State Map for all configurations:", allConfigurations)
-        console.log(`Saved settings locally for location: ${locationName}`, allConfigurations[locationName])
+        // console.log("Current App State Map for all configurations:", allConfigurations)
+        // console.log(`Saved settings locally for location: ${locationName}`, allConfigurations[locationName])
         setExpandedLocation(null)
     }
 
@@ -146,23 +147,21 @@ export default function GBPConfigurationDashboard() {
     }
 
     return (
-        <div className="container mx-auto py-8 max-w-5xl space-y-8 px-4">
+        // <div className="container mx-auto py-4 sm:py-6 max-w-5xl space-y-8 px-4">
+        <div className="container mx-auto py-4 sm:py-6  px-0">
             {/* <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border pb-6"> */}
-            <div className="flex flex-row items-center justify-between gap-4 border-b border-border pb-6">
+            {/* <div className="flex flex-row items-center justify-between gap-4 border-b border-border pb-2">
                 <div className="space-y-1">
-                    <h1 className="text-3xl font-bold tracking-tight">SmbFlo Sync</h1>
-                    <p className="text-muted-foreground text-sm">
-                        Click location to manage its reviews
-                    </p>
-                    {/* <Button onClick={async () => await syncAllLinkedAccounts()}>Sync all accounts</Button> */}
-
+                    <h1 className="flex flex-row gap-2 text-2xl items-center font-bold tracking-tight text-primary">
+                        <Sparkles color="green" size={28}/>
+                        SmbFlo</h1>
                 </div>
                 <SignOutButton />
-            </div>
+            </div> */}
 
             {
-                !accounts ? <Loading info={'Account details'}/>
-                :
+                !accounts ? <Loading info={'Account details'} />
+                    :
                     accounts.map((account) => {
                         const accountId = account.name?.split('/')[1] || ""
 
@@ -192,6 +191,7 @@ export default function GBPConfigurationDashboard() {
                                         <div className="p-8 text-center text-sm text-muted-foreground">No business locations found.</div>
                                     ) : (
                                         account.locations.map((location) => {
+                                            const locationId = location.name?.split('/')[1] || ""
                                             const isExpanded = expandedLocation === location.name
                                             const currentLocalConfig = allConfigurations[location.name] || createDefaultConfig()
                                             const locationHasSavedData = !!allConfigurations[location.name]
@@ -354,14 +354,19 @@ export default function GBPConfigurationDashboard() {
                                                                         {validationErrors[location.name]}
                                                                     </span>
                                                                 )}
-                                                                <div className="flex items-center justify-end gap-2">
-                                                                    <Button variant="ghost" size="sm" className="text-xs h-8" onClick={() => setExpandedLocation(null)}>
-                                                                        Cancel
-                                                                    </Button>
-                                                                    <Button disabled size="sm" className="gap-2 text-xs h-8" onClick={() => handleSaveAction(location.name)}>
-                                                                        <Save className="h-3.5 w-3.5" />
-                                                                        Apply Settings
-                                                                    </Button>
+                                                                <div className="flex w-full items-center justify-between gap-2">
+                                                                    <Link href={`/sample/${accountId}/${locationId}`}>
+                                                                        <Button size="sm" className="text-xs h-8">Sample Replies</Button>
+                                                                    </Link>
+                                                                    <div className="flex items-center justify-end gap-2">
+                                                                        <Button variant="ghost" size="sm" className="text-xs h-8" onClick={() => setExpandedLocation(null)}>
+                                                                            Cancel
+                                                                        </Button>
+                                                                        <Button disabled size="sm" className="gap-2 text-xs h-8" onClick={() => handleSaveAction(location.name)}>
+                                                                            <Save className="h-3.5 w-3.5" />
+                                                                            Apply Settings
+                                                                        </Button>
+                                                                    </div>
                                                                 </div>
                                                             </div>
 

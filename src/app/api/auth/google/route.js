@@ -3,9 +3,6 @@ import { NextResponse } from 'next/server';
 export async function GET() {
     const rootUrl = 'https://accounts.google.com/o/oauth2/v2/auth';
 
-    console.log('GOOGLE_CLIENT_ID:', process.env.GOOGLE_CLIENT_ID);
-    console.log('GOOGLE_REDIRECT_URI:', process.env.GOOGLE_REDIRECT_URI);
-
     const options = {
         redirect_uri: process.env.GOOGLE_REDIRECT_URI, // Must match your GCP Console redirect precisely!
         client_id: process.env.GOOGLE_CLIENT_ID,

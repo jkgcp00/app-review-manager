@@ -1,6 +1,9 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { Sparkles } from "lucide-react";
+import { SignOutButton } from "@/components/sign-out-button";
+// import Footer from "@/components/footer";
 
 // const geistSans = Geist({
 //   variable: "--font-geist-sans",
@@ -14,7 +17,7 @@ import "./globals.css";
 
 const inter = Inter({
   subsets: ["latin"],
-  variable: "--font-sans", 
+  variable: "--font-sans",
 });
 
 export const metadata = {
@@ -29,7 +32,28 @@ export default function RootLayout({ children }) {
       // className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       className={`${inter.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      {/* <body className="min-h-full flex flex-col">{children}</body> */}
+      <body className="min-h-full flex flex-col">
+        <div className="container mx-auto py-4 sm:py-6 max-w-5xl space-y-8 px-4">
+          {/* <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border pb-6"> */}
+          <div className="flex flex-row items-center justify-between gap-4 border-b border-border pb-2">
+            <div className="space-y-1">
+              <h1 className="flex flex-row gap-2 text-2xl items-center font-bold tracking-tight text-primary">
+                <Sparkles color="green" size={28} />
+                SmbFlo</h1>
+              {/* <p className="text-muted-foreground text-sm">
+                        Click location to manage its reviews
+                    </p> */}
+              {/* <Button onClick={async () => await syncAllLinkedAccounts()}>Sync all accounts</Button> */}
+
+            </div>
+            {/* <Button onClick={async() => await syncAllLinkedAccounts()}>Sync</Button> */}
+            <SignOutButton />
+          </div>
+          {children}
+        </div>
+        {/* <Footer /> */}
+      </body>
     </html>
   );
 }

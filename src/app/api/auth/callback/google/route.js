@@ -41,7 +41,7 @@ export async function GET(request) {
         const accessToken_expiry = new Date(Date.now() + tokens.expires_in * 1000).toISOString();
         const refreshToken = tokens.refresh_token; // Save this string permanently!
 
-        console.log('[Tokens Received]:', { accessToken, refreshToken });
+        // console.log('[Tokens Received]:', { accessToken, refreshToken });
 
         const idToken = tokens.id_token;
         const base64Payload = idToken.split('.')[1]; // Get the payload part of the JWT
@@ -50,7 +50,7 @@ export async function GET(request) {
 
         // 3. Destructure the email and display name (name)
         const { email } = userProfile;
-        console.log('User Email:', email);
+        // console.log('User Email:', email);
 
         redirectUrl.searchParams.set('google_email', email);
         const { code: status } = await linkGoogleAccount({ googleEmail: email, accessToken: accessToken, refreshToken: refreshToken, expiresAt: accessToken_expiry });

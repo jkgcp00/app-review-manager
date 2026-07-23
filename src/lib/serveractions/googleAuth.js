@@ -2,6 +2,8 @@
 
 import { NextResponse } from 'next/server';
 import { createAdminClient, getSupabaseClient } from './supabase';
+import { GoogleGenAI, Type } from '@google/genai';
+import { delay, getRating } from '../utils';
 
 // const initiateGoogleAuth = async () => {
 
@@ -65,7 +67,7 @@ export async function linkGoogleAccount({ googleEmail, accessToken, refreshToken
             throw new Error("Unauthorized: You must be logged in with a valid Supabase account.");
         }
 
-        console.log(`linkGoogleAccount for user: ${user.id}, ${user.email}`);
+        // console.log(`linkGoogleAccount for user: ${user.id}, ${user.email}`);
 
         /* STREAMING_CHUNK: Upserting Google Account Credentials... */
         // 2. Save the credentials securely into the google_accounts table
@@ -93,7 +95,7 @@ export async function linkGoogleAccount({ googleEmail, accessToken, refreshToken
     }
 }
 
-export async function refreshGoogleAccessTokenIfNeeded({ google_email }) {
+async function refreshGoogleAccessTokenIfNeeded({ google_email }) {
     const supabase = await getSupabaseClient();
 
     // 1. Fetch the existing tokens
@@ -107,14 +109,14 @@ export async function refreshGoogleAccessTokenIfNeeded({ google_email }) {
         throw new Error("Linked Google account not found in database.");
     }
 
-    console.log('refreshGoogleAccessTokenIfNeeded: ', JSON.stringify(account));
+    // console.log('refreshGoogleAccessTokenIfNeeded: ', JSON.stringify(account));
 
     const now = new Date();
     const tokenExpiry = new Date(account.expires_at);
 
     // Buffer check: If token is still valid for more than 5 minutes, return early
     if (tokenExpiry.getTime() - now.getTime() > 5 * 60 * 1000) {
-        console.log('Token is still fresh');
+        // console.log('Token is still fresh');
         return; // Token is still fresh
     }
 
@@ -141,7 +143,7 @@ export async function refreshGoogleAccessTokenIfNeeded({ google_email }) {
     const tokenData = await response.json();
     const newExpiresAt = new Date(Date.now() + tokenData.expires_in * 1000).toISOString();
 
-    console.log('Saving refreshed token...');
+    // console.log('Saving refreshed token...');
 
     /* STREAMING_CHUNK: Updating DB with New Access Token... */
     // 3. Persist the updated Access Token in Supabase
@@ -167,7 +169,7 @@ export async function syncAllLinkedAccounts() {
     var accountRecords = [];
     try {
         const supabase = await getSupabaseClient();
-        console.log('Full sync');
+        // console.log('Full sync');
         const { data: linked_accounts, error: fetchError } = await supabase
             .from('google_accounts')
             .select('id, google_email');
@@ -177,7 +179,7 @@ export async function syncAllLinkedAccounts() {
             throw new Error("Unable to retrieve valid Google access token.");
         }
 
-        console.log('Linked accounts: ', JSON.stringify(linked_accounts));
+        // console.log('Linked accounts: ', JSON.stringify(linked_accounts));
 
 
         for (const linked_account of linked_accounts) {
@@ -193,11 +195,11 @@ export async function syncAllLinkedAccounts() {
 }
 
 export async function loadGoogleLocationsFromDB() {
-    console.log('Loading location data from db...');
+    // console.log('Loading location data from db...');
 
     try {
         await syncAllLinkedAccounts();
-    } catch(error) {
+    } catch (error) {
         console.log('ERR: Error in syncAllLinkedAccounts - ', error.message);
     }
 
@@ -225,7 +227,7 @@ export async function loadGoogleLocationsFromDB() {
         console.error("Error in discoverAndSyncGoogleLocations:", error.message);
     }
 
-    console.log('ACCOUNT_RECORDS: ', JSON.stringify(accountRecords));
+    // console.log('ACCOUNT_RECORDS: ', JSON.stringify(accountRecords));
 
     return accountRecords;
 
@@ -237,16 +239,16 @@ async function loadBusinessesAndLocationsFromDB({ linked_google_account_id }) {
     try {
         const supabase = await getSupabaseClient();
         const { data: businessesFromDB, error: errBusinessesFromDB } = await supabase
-        .from('businesses')
-        .select('id, google_account_id, google_business_id, business_name')
-        .eq('google_account_id', linked_google_account_id);
+            .from('businesses')
+            .select('id, google_account_id, google_business_id, business_name')
+            .eq('google_account_id', linked_google_account_id);
 
         if (errBusinessesFromDB) {
             console.log(`ERR: failed to retrieve businesses for linked_google_accound_id: ${linked_google_account_id}, error: ${errBusinessesFromDB.message}`);
             return;
         }
 
-        console.log('businessesFromDB: ', businessesFromDB);
+        // console.log('businessesFromDB: ', businessesFromDB);
 
         for (const businessFromDB of businessesFromDB) {
             var business = {
@@ -257,10 +259,10 @@ async function loadBusinessesAndLocationsFromDB({ linked_google_account_id }) {
 
             // Read all locations for this business
 
-            const {data: locationsFromDB, error: errLocationsFromDB} = await supabase
-            .from('locations')
-            .select('id, business_id, google_location_id, location_name, address_line_1, city, state, zip_code, primary_category, is_active, reply_action_1_star, reply_action_2_star, reply_action_3_star, reply_action_4_star, reply_action_5_star, notification_phone, notification_email, notification_preference, prompt_custom_context')
-            .eq('business_id', businessFromDB.id);
+            const { data: locationsFromDB, error: errLocationsFromDB } = await supabase
+                .from('locations')
+                .select('id, business_id, google_location_id, location_name, address_line_1, city, state, zip_code, primary_category, is_active, reply_action_1_star, reply_action_2_star, reply_action_3_star, reply_action_4_star, reply_action_5_star, notification_phone, notification_email, notification_preference, prompt_custom_context')
+                .eq('business_id', businessFromDB.id);
 
 
             if (errLocationsFromDB) {
@@ -268,11 +270,11 @@ async function loadBusinessesAndLocationsFromDB({ linked_google_account_id }) {
                 continue;
             }
 
-            console.log('locationsFromDB: ', locationsFromDB);
+            // console.log('locationsFromDB: ', locationsFromDB);
 
             var locations = [];
             for (const locationFromDB of locationsFromDB) {
-                var location ={
+                var location = {
                     id: locationFromDB.id,
                     name: locationFromDB.google_location_id,
                     title: locationFromDB.location_name,
@@ -293,7 +295,7 @@ async function loadBusinessesAndLocationsFromDB({ linked_google_account_id }) {
             businesses.push(business);
         }
 
-        console.log('ALL BUSSINESSES: ', JSON.stringify(business));
+        // console.log('ALL BUSSINESSES: ', JSON.stringify(business));
 
     } catch (error) {
         console.error("Error in discoverAndSyncGoogleLocations:", error.message);
@@ -303,7 +305,7 @@ async function loadBusinessesAndLocationsFromDB({ linked_google_account_id }) {
 }
 
 async function discoverAndSyncGoogleLocations({ id, google_email }) {
-    console.log('Syncing linked account: ', google_email);
+    // console.log('Syncing linked account: ', google_email);
     var accountRecords = [];
     try {
         const supabase = await getSupabaseClient();
@@ -349,7 +351,7 @@ async function discoverAndSyncGoogleLocations({ id, google_email }) {
             // Find Personal or Organization type accounts
             const fullAccountName = gAccount.name; // Format: "accounts/10743209187429184"
             const gAccountId = fullAccountName.split('/')[1];
-            console.log(`gAccount: ${gAccount.accountName}, ${gAccountId}, ${gAccount.name}, ${gAccount.type}`);
+            // console.log(`gAccount: ${gAccount.accountName}, ${gAccountId}, ${gAccount.name}, ${gAccount.type}`);
             if (gAccount.type !== 'PERSONAL' && gAccount.type !== 'LOCATION_GROUP') continue;
 
             var accountRecord = {
@@ -393,12 +395,12 @@ async function discoverAndSyncGoogleLocations({ id, google_email }) {
 
             // if (busError) throw new Error(`Failed to create business record: ${busError.message}`);
 
-            console.log(`gAccount: proceeding...`);
+            // console.log(`gAccount: proceeding...`);
 
             /* STREAMING_CHUNK: Resolving Storefront Address Context... */
             // Query storefronts inside this specific account
             const locationsResponse = await fetch(
-                `https://mybusinessbusinessinformation.googleapis.com/v1/${gAccount.name}/locations?readMask=name,title,categories.primaryCategory.displayName,storefrontAddress,websiteUri`,
+                `https://mybusinessbusinessinformation.googleapis.com/v1/${gAccount.name}/locations?readMask=metadata,name,title,categories.primaryCategory.displayName,storefrontAddress,websiteUri`,
                 { headers: { Authorization: `Bearer ${account.access_token}` } }
             );
 
@@ -410,7 +412,8 @@ async function discoverAndSyncGoogleLocations({ id, google_email }) {
             const locationsData = await locationsResponse.json();
             const discoveredLocations = locationsData.locations || [];
 
-            console.log('discovered locations: ', discoveredLocations.length);
+            // console.log('discovered locations: ', discoveredLocations.length);
+            // console.log('discovered locations data: ', JSON.stringify(discoveredLocations));
 
             /* STREAMING_CHUNK: Storing Discovered Storefronts as Inactive... */
             var locationRecords = [];
@@ -442,7 +445,7 @@ async function discoverAndSyncGoogleLocations({ id, google_email }) {
                 const fullLocationName = loc.name; // Format: "locations/8327491827491"
                 const locId = fullLocationName.split('/')[1];
                 // console.log(`Loc [gAccount-${gAccount.name}]:  ${loc.name}, ${locId}, ${loc.title}, ${JSON.stringify(address)}`)
-                console.log('Location: ', JSON.stringify(loc));
+                // console.log('Location: ', JSON.stringify(loc));
 
                 var locationRecord = {
                     name: loc.name,
@@ -457,30 +460,53 @@ async function discoverAndSyncGoogleLocations({ id, google_email }) {
                     },
                     websiteUri: loc.websiteUri
                 };
-                console.log('LocationRecord: ', locationRecord);
+                // console.log('LocationRecord: ', locationRecord);
                 locationRecords.push(locationRecord);
 
                 // Get last 3 reviews
-                // const reviewUrl = new URL(
-                //     `https://mybusiness.googleapis.com/v4/accounts/${gAccountId}/locations/${locId}/reviews`
+
+                // const revRes = await fetch(
+                //     `https://mybusiness.googleapis.com/v4/accounts/${gAccountId}/locations/${locId}/reviews`,
+                //     { headers: { Authorization: `Bearer ${account.access_token}` } }
                 // );
 
-                // // Limit the result count to exactly 3
-                // reviewUrl.searchParams.append("pageSize", "3");
-
-
-                // const response = await fetch(reviewUrl.toString(),
-                //     { method: "GET", headers: { Authorization: `Bearer ${account.access_token}` } }
-                // );
-
-                // if (!response.ok) {
-                //     throw new Error(`Error fetching reviews: ${response.statusText}`);
+                // if (!revRes.ok) {
+                //     const errorData = await revRes.json(); // Parses Google's 403 error body
+                //     console.error("HTTP Status Code:", revRes.status);
+                //     console.error("Full Error Details:", JSON.stringify(errorData, null, 2));
+                //     return;
                 // }
 
-                // const revdata = await response.json();
 
-                // // The list of the 3 most recent reviews
-                // const reviews = revdata.reviews || [];
+
+
+
+
+                // ----------------
+
+                const reviewUrl = new URL(
+                    `https://mybusiness.googleapis.com/v4/accounts/${gAccountId}/locations/${locId}/reviews`
+                    // `https://mybusiness.googleapis.com/v4/accounts/-/locations/${locId}/reviews`
+                );
+
+                // console.log('Review link: ', reviewUrl);
+
+                // Limit the result count to exactly 3
+                reviewUrl.searchParams.append("pageSize", "3");
+
+
+                const response = await fetch(reviewUrl.toString(),
+                    { method: "GET", headers: { Authorization: `Bearer ${account.access_token}` } }
+                );
+
+                if (!response.ok) {
+                    throw new Error(`Error fetching reviews: ${JSON.stringify(response)}`);
+                }
+
+                const revdata = await response.json();
+
+                // The list of the 3 most recent reviews
+                const reviews = revdata.reviews || [];
 
                 // console.log("Last 3 Reviews:", reviews);
             }
@@ -489,8 +515,8 @@ async function discoverAndSyncGoogleLocations({ id, google_email }) {
             accountRecords.push(accountRecord);
         }
 
-        console.log('All Accounts-json: ', JSON.stringify(accountRecords));
-        console.log('All Accounts: ', accountRecords);
+        // console.log('All Accounts-json: ', JSON.stringify(accountRecords));
+        // console.log('All Accounts: ', accountRecords);
         // return { success: true, syncedCount: totalLocationsSynced };
     } catch (error) {
         console.error("Error in discoverAndSyncGoogleLocations:", error.message);
@@ -498,4 +524,458 @@ async function discoverAndSyncGoogleLocations({ id, google_email }) {
     }
 
     return accountRecords;
+}
+
+export async function readSampleReviews({ accountId, locationId }) {
+
+    var businessData = null;
+    try {
+
+        //1. Get Supabase client
+        const supabase = await getSupabaseClient();
+
+        //2. Confirm the accountId and locationId belongs to current user
+        const { data: accountData, error: accountDataError } = await supabase.from('businesses').select('id, google_account_id, business_name').eq('google_business_id', `accounts/${accountId}`).single();
+        if (accountDataError) {
+            console.log(`ERR: readSampleReviews. While getting account - accountId ${accountId} locationId ${locationId}`);
+            return;
+        }
+
+        businessData = {
+            title: accountData.business_name
+        };
+
+        //Get location
+        var locationDetails = null;
+        const { data: locationData, error: locationDataError } = await supabase
+            .from('locations')
+            .select('id, location_name, primary_category, address_line_1, city, state, zip_code, is_active')
+            .eq('google_location_id', `locations/${locationId}`)
+            .eq('business_id', accountData.id)
+            .single();
+
+        if (locationDataError) {
+            console.log(`ERR: readSampleReviews. While getting location -  accountId ${accountId} locationId ${locationId}`);
+            return;
+        }
+
+        // 3. Fetch review summary
+        // const { rating, reviewCount } = await fetchReviewSummary({ placeId: 'ChIJcdhwhAEe2YgRr54sLaq3Ef4' });
+
+        // 3. Now fetch latest reviews for this location from GBP
+        const reviews = await fetchRecentReviews({ google_account_id: accountData.google_account_id, accountId: accountId, locationId: locationId });
+        // console.log('Reviews: ', reviews);
+
+        businessData.location = {
+            title: locationData.location_name,
+            primary_category: locationData.primary_category,
+            // rating: rating ? rating : 'N/A',
+            // reviewCount: reviewCount ? reviewCount : 'N/A',
+            storefrontAddress: {
+                addressLines: locationData.address_line_1 ? [locationData.address_line_1] : null,
+                city: locationData.city,
+                state: locationData.state,
+                zip_code: locationData.zip_code,
+            },
+            recentReviews: reviews ? [...reviews] : []
+        }
+
+        // console.log('BusinessData: ', JSON.stringify(businessData));
+        // const geminiRes = await generateResponses({businessData: businessData});
+        return businessData;
+
+    } catch (error) {
+        console.log('ERR: ', error);
+        return null;
+    }
+}
+
+
+// const SYSTEM_INSTRUCTION_1 = `
+// You are an expert Local SEO & Reputation Management Specialist. Your task is to craft high-converting, humanized responses to Google Reviews for local businesses.
+
+// ### OBJECTIVES
+// 1. **Human & Authentic**: Sound like a warm, appreciative business owner. Avoid robotic clichés like "Valued customer", "We strive to provide", or generic corporate fluff.
+// 2. **Local SEO Optimization**: Subtly weave in the business name, city, neighborhood, or specific cuisine/services mentioned in the context payload *when natural*. Never keyword-stuff.
+// 3. **Specific Recognition**: Call out specific menu items, staff members (e.g., Manny), or details the reviewer praised. If an employee is mentioned, mention passing the praise to them.
+// 4. **Tone Matching**: Enthusiastic for 5-star reviews; empathetic and resolution-focused for negative ones.
+
+// ### INPUT DATA
+// You will receive a JSON payload containing business metadata (title, category, city) and an array of recent reviews.
+
+// ### OUTPUT REQUIREMENTS
+// Return a JSON array where each object contains only the \`reviewId\` and the generated \`response\`.
+// `;
+// const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+// async function generateResponses1({ businessData }) {
+//     console.log('Generating response...');
+//     try {
+//         const response = await ai.models.generateContent({
+//             model: "gemini-3.5-flash",
+//             contents: JSON.stringify(businessData),
+//             config: {
+//                 systemInstruction: SYSTEM_INSTRUCTION_1,
+//                 // Force output into strict JSON structure
+//                 responseMimeType: "application/json",
+//                 responseSchema: {
+//                     type: Type.ARRAY,
+//                     description: "List of review responses matched by reviewId",
+//                     items: {
+//                         type: Type.OBJECT,
+//                         properties: {
+//                             reviewId: {
+//                                 type: Type.STRING,
+//                                 description: "The unique ID of the review being responded to"
+//                             },
+//                             response: {
+//                                 type: Type.STRING,
+//                                 description: "The crafted humanized response text"
+//                             }
+//                         },
+//                         required: ["reviewId", "response"]
+//                     }
+//                 },
+//                 // Low temperature for reliable execution, slightly higher than 0 for organic phrasing
+//                 temperature: 0.3
+//             }
+//         });
+
+//         const parsedOutput = JSON.parse(response.text);
+//         console.log('Response: ', parsedOutput);
+//         return parsedOutput;
+
+//     } catch (error) {
+//         console.error("Error generating responses:", error);
+//         throw error;
+//     }
+
+// }
+
+// const SYSTEM_INSTRUCTION = `
+// You are an expert Local SEO & Reputation Management Specialist. Your task is to craft high-converting, humanized responses to Google Reviews for local businesses.
+
+// ### OBJECTIVES
+// 1. **Human & Authentic**: Sound like a warm, appreciative business owner. Avoid robotic clichés like "Valued customer", "We strive to provide", or generic corporate fluff.
+// 2. **Local SEO Optimization**: Subtly weave in the business name, city, neighborhood, or specific cuisine/services mentioned in the context payload *when natural*. Never keyword-stuff.
+// 3. **Specific Recognition**: Call out specific menu items, staff members (e.g., Manny), or details the reviewer praised. If an employee is mentioned, mention passing the praise to them.
+// 4. **Tone Matching**: Enthusiastic for 5-star reviews; empathetic and resolution-focused for negative ones.
+
+// ### INPUT DATA
+// You will receive a JSON payload containing business metadata (title, category, city) and an array of recent reviews.
+
+// ### OUTPUT REQUIREMENTS
+// Return a JSON array where each object contains only the \`reviewId\` and the generated \`response\`.
+// `;
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+export async function generateResponses({ buisnessInfo, reviews }) {
+    // console.log('Generating response...');
+
+    const syste_intructions = `
+You are an expert Local SEO & Reputation Management Specialist for ${buisnessInfo.title} (${buisnessInfo.primary_category}) at ${buisnessInfo.city}, ${buisnessInfo.state}. Your task is to craft high-converting, humanized responses to Google Reviews for local businesses.
+
+### OBJECTIVES
+1. **Human & Authentic**: Sound like a warm, appreciative business owner. Avoid robotic clichés like "Valued customer", "We strive to provide", or generic corporate fluff.
+2. **Local SEO Optimization**: Subtly weave in the business name, city, neighborhood, or specific cuisine/services mentioned in the context payload *when natural*. Never keyword-stuff.
+3. **Specific Recognition**: Call out specific menu items, staff members, or details the reviewer praised. If an employee is mentioned, mention passing the praise to them.
+4. **Tone Matching**: Enthusiastic for 5-star reviews; empathetic and resolution-focused for negative ones.
+
+### INPUT DATA
+You will receive an array of reviews, each containing reviewId, reviewer name, star rating and the review comments.
+
+### OUTPUT REQUIREMENTS
+Return a JSON array where each object contains only the \`reviewId\` and the generated \`response\`.
+`;
+
+    // console.log('Prompt: ', syste_intructions);
+
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-3.5-flash-lite",
+            contents: JSON.stringify(reviews),
+            config: {
+                systemInstruction: syste_intructions,
+                // Force output into strict JSON structure
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.ARRAY,
+                    description: "List of review responses matched by reviewId",
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            reviewId: {
+                                type: Type.STRING,
+                                description: "The unique ID of the review being responded to"
+                            },
+                            response: {
+                                type: Type.STRING,
+                                description: "The crafted humanized response text"
+                            }
+                        },
+                        required: ["reviewId", "response"]
+                    }
+                },
+                // Low temperature for reliable execution, slightly higher than 0 for organic phrasing
+                temperature: 0.3
+            }
+        });
+
+        const parsedOutput = JSON.parse(response.text);
+
+        // console.log('NEW Response: ', parsedOutput);
+
+        /// FAKE DATA
+        // const parsedOutput = [
+        //     {
+        //         reviewId: 'AbFvOqn-VRavh2NEoR8BnOdXfp_e0tLxxEprCFYUrEcGZ89vKw9vpVJwRju8Vh0Gi4IEi6oOKMvs',
+        //         response: 'Thank you so much for the wonderful review, Francoise! We are thrilled you enjoyed the food and loved the atmosphere. Hope to welcome you back soon!'
+        //     },
+        //     {
+        //         reviewId: 'AbFvOqkM7Z8uAXyHRV3X_GT3FsG098_Xgy6RSw8yJ6dPPTGtTeAuL7yvnNJyMskyYoieJuI4TtU9',
+        //         response: 'Thanks a ton, Theo! We will definitely pass along your kind words and a huge shoutout to Manny. We love keeping things fun and are so glad you enjoyed the great food and service!'
+        //     },
+        //     {
+        //         reviewId: 'AbFvOqnUiMUOuaYReb1swWrjDzhKX43V0jLaHdBM9Qyh1T6K-PUKxKgIGReXuUfs92ahFxYdbTHhgg',
+        //         response: 'Wow, Khushboo, thank you for such an incredible compliment! Hearing that we are the best Indian restaurant on the east coast of Florida truly makes our day. Starting off with our spinach chaat is always a great choice, and we are so honored that you are willing to drive an hour just to dine with us. We cannot wait to welcome you back for your next craving!'
+        //     }
+        // ]
+        // await delay(5000);
+
+
+        return parsedOutput;
+
+    } catch (error) {
+        console.error("Error generating responses:", error);
+        throw error;
+    }
+
+}
+
+
+export async function generateReviewReply({ locationName,
+    category,
+    city,
+    state,
+    reviwerName,
+    starRating,
+    reviewComment }) {
+    const prompt = `
+    You are the manager of "${locationName}" (${category}) in location ${city}, ${state}.
+    Write a concise, professional, and friendly response to a customer review.
+    
+    Customer Name: ${reviwerName}
+    Customer Rating: ${getRating(starRating)}/5 stars
+    Customer Review: "${reviewComment}"
+
+    Response requirements:
+    - Keep it under 3 sentences.
+    - Sound authentic and polite.
+    - Address feedback directly.
+  `;
+
+    // console.log(`Generating reply for ${locationName} from ${reviwerName}`);
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-3.5-flash-lite",
+            contents: prompt,
+        });
+
+        // console.log(`Review generated successfully for ${locationName} from ${reviwerName} `);
+        return { success: true, reply: response.text };
+    } catch (error) {
+        // Gracefully handle Gemini busy errors
+        if (error?.status === 503) {
+            console.log(`Review generation failed for ${locationName} from ${reviwerName} 503 `);
+            return {
+                success: false,
+                error: "AI service is currently busy. Click to generate again."
+            };
+        }
+        console.log(`Review generation failed for ${locationName} from ${reviwerName} error: ${JSON.stringify(error)}`);
+        return { success: false, error: "Failed to generate reply." };
+    }
+}
+
+
+async function refreshGoogleAccessTokenIfNeededById({ google_account_id }) {
+
+    const supabase = await getSupabaseClient();
+
+    // 1. Fetch the existing tokens
+    const { data: account, error: fetchError } = await supabase
+        .from('google_accounts')
+        .select('id, google_email, access_token, refresh_token, expires_at')
+        .eq('id', google_account_id)
+        .single();
+
+    // console.log('Done readin');
+    if (fetchError || !account) {
+        console.log('FetchErr: ', fetchError)
+        throw new Error("Linked Google account not found in database.");
+    }
+
+
+    const now = new Date();
+    const tokenExpiry = new Date(account.expires_at);
+
+    // Buffer check: If token is still valid for more than 5 minutes, return early
+    if (tokenExpiry.getTime() - now.getTime() > 5 * 60 * 1000) {
+        // console.log('Token is still fresh');
+        return account.access_token; // Token is still fresh
+    }
+
+    console.log('Renewing token...');
+
+    /* STREAMING_CHUNK: Fetching Fresh Tokens from Google OAuth... */
+    // 2. Token is expired or expiring soon, request a fresh one from Google
+    const response = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+            client_id: process.env.GOOGLE_CLIENT_ID || '',
+            client_secret: process.env.GOOGLE_CLIENT_SECRET || '',
+            refresh_token: account.refresh_token,
+            grant_type: 'refresh_token',
+        }),
+    });
+
+    if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Failed to rotate Google OAuth access token: ${errText}`);
+    }
+
+    const tokenData = await response.json();
+    const newExpiresAt = new Date(Date.now() + tokenData.expires_in * 1000).toISOString();
+
+    // console.log('Saving refreshed token...');
+
+    /* STREAMING_CHUNK: Updating DB with New Access Token... */
+    // 3. Persist the updated Access Token in Supabase
+    const { error: updateError } = await supabase
+        .from('google_accounts')
+        .update({
+            access_token: tokenData.access_token,
+            expires_at: newExpiresAt
+        })
+        .eq('id', google_account_id);
+
+    // console.log('Updated new token');
+
+    if (updateError) {
+        throw new Error(`Failed to update fresh access token in database: ${updateError.message}`);
+    }
+
+    // console.log('Returning token');
+    return tokenData.access_token;
+}
+
+async function fetchReviewSummary({ placeId }) {
+
+    try {
+        const responsePlaces = await fetch(
+            `https://places.googleapis.com/v1/places/${placeId}`,
+            {
+                headers: {
+                    "X-Goog-Api-Key": process.env.MAPS_API_KEY,
+                    "X-Goog-FieldMask": "rating,userRatingCount"
+                }
+            }
+        );
+        const { rating, userRatingCount } = await responsePlaces.json();
+        console.log(`Rating: ${rating}, count:${userRatingCount}`);
+        return { rating: rating, reviewCount: userRatingCount };
+    } catch (error) {
+        console.log(`ERR: Failed to get review summary for place: `, placeId);
+        return { rating: null, reviewCount: null };
+    }
+
+}
+
+async function fetchRecentReviews({ google_account_id, accountId, locationId }) {
+
+    var reviews = null;
+
+    try {
+        // Get the access token for linked google_account_id that was used for login/onboarding
+        const access_token = await refreshGoogleAccessTokenIfNeededById({ google_account_id });
+
+        if (!access_token) {
+            console.log(`ERR: Cannot get access_token for accountId ${accountId} locationId ${locationId}`);
+            return reviews;
+        }
+
+        const reviewUrl = new URL(
+            `https://mybusiness.googleapis.com/v4/accounts/${accountId}/locations/${locationId}/reviews?pageSize=3&orderBy=updateTime%20desc`
+        );
+
+        const response = await fetch(reviewUrl.toString(),
+            { method: "GET", headers: { Authorization: `Bearer ${access_token}` } }
+        );
+
+        if (!response.ok) {
+            // console.log('ERROR: ', JSON.stringify(response))
+            let errorDetails;
+            try {
+                // Try parsing the error body from Google (contains code, message, status)
+                errorDetails = await response.json();
+                // console.error("Exact API Error Details (try):", errorDetails);
+            } catch {
+                // Fallback if response body wasn't JSON (e.g., HTML error page)
+                errorDetails = await response.text();
+                // console.error("Exact API Error Details (catch):", errorDetails);
+            }
+
+            console.error("HTTP Error Status:", response.status, response.statusText);
+            console.error("fetchRecentReviews - Error Details:", errorDetails);
+
+            throw new Error(`Error fetching reviews: ${JSON.stringify(response)}`);
+        }
+        const revdata = await response.json();
+        reviews = revdata.reviews || [];
+
+        // FAKE DATA
+        // reviews = [
+        //     {
+        //         reviewId: 'AbFvOqn-VRavh2NEoR8BnOdXfp_e0tLxxEprCFYUrEcGZ89vKw9vpVJwRju8Vh0Gi4IEi6oOKMvs',
+        //         reviewer: {
+        //             profilePhotoUrl: 'https://lh3.googleusercontent.com/a/ACg8ocLu6u-hdIh5BOE7O-Mz-oUDDbnNYvEV1wNRMmaLn6hr-5o6gA=s120-c-rp-mo-br100',
+        //             displayName: 'Francoise Sejourne'
+        //         },
+        //         starRating: 'FIVE',
+        //         comment: 'Delicious, great atmosphere',
+        //         createTime: '2026-07-21T01:19:47.174478Z',
+        //         updateTime: '2026-07-21T01:19:47.174478Z',
+        //         name: 'accounts/106541109887686928651/locations/9559411719754817822/reviews/AbFvOqn-VRavh2NEoR8BnOdXfp_e0tLxxEprCFYUrEcGZ89vKw9vpVJwRju8Vh0Gi4IEi6oOKMvs'
+        //     },
+        //     {
+        //         reviewId: 'AbFvOqkM7Z8uAXyHRV3X_GT3FsG098_Xgy6RSw8yJ6dPPTGtTeAuL7yvnNJyMskyYoieJuI4TtU9',
+        //         reviewer: {
+        //             profilePhotoUrl: 'https://lh3.googleusercontent.com/a/ACg8ocKlCiSn0uVG40WfLeMcyqzbf0klFVSRkyOE_SdPI2dpCnxv5g=s120-c-rp-mo-br100',
+        //             displayName: 'Theo Ihedoro'
+        //         },
+        //         starRating: 'FIVE',
+        //         comment: 'Manny is excellent!\nFood was great.\nHumorous! Superb service!',
+        //         createTime: '2026-07-20T18:24:54.096560Z',
+        //         updateTime: '2026-07-20T18:24:54.096560Z',
+        //         name: 'accounts/106541109887686928651/locations/9559411719754817822/reviews/AbFvOqkM7Z8uAXyHRV3X_GT3FsG098_Xgy6RSw8yJ6dPPTGtTeAuL7yvnNJyMskyYoieJuI4TtU9'
+        //     },
+        //     {
+        //         reviewId: 'AbFvOqnUiMUOuaYReb1swWrjDzhKX43V0jLaHdBM9Qyh1T6K-PUKxKgIGReXuUfs92ahFxYdbTHhgg',
+        //         reviewer: {
+        //             profilePhotoUrl: 'https://lh3.googleusercontent.com/a-/ALV-UjULEpXiPz4k4PbFwi0wJdC0ndDnIaynqHApEmnIenls1zW0HWRJ9Q=s120-c-rp-mo-br100',
+        //             displayName: 'Khushboo Patel'
+        //         },
+        //         starRating: 'FIVE',
+        //         comment: 'This has been the best Indian restaurant we have been to in east coast of Florida! Hands down!!\n' +
+        //             'We started with the spinach chaat that delicious and it kept on getting better with the main course and dessert. We will driving an hour each way to come eat here every time we crave authentic Indian food!!',
+        //         createTime: '2026-07-20T00:48:28.412368Z',
+        //         updateTime: '2026-07-20T00:48:28.412368Z',
+        //         name: 'accounts/106541109887686928651/locations/9559411719754817822/reviews/AbFvOqnUiMUOuaYReb1swWrjDzhKX43V0jLaHdBM9Qyh1T6K-PUKxKgIGReXuUfs92ahFxYdbTHhgg'
+        //     }
+        // ]
+
+    } catch (error) {
+        console.log(`ERR: fetchRecentReviews from GBP for accountId ${accountId} locationId ${locationId} error: ${error}`);
+    }
+
+    return reviews;
 }

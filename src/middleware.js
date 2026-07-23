@@ -50,8 +50,12 @@ export async function middleware(request) {
 
     // 4. Route Guard Rules
     if (!user && !isLoginPage) {
-        url.pathname = "/login";
-        return NextResponse.redirect(url);
+        const { pathname } = request.nextUrl;
+        const loginUrl = new URL('/login', request.url);
+        // 💡 Save the requested URL as a query param
+        loginUrl.searchParams.set('next', pathname);
+
+        return NextResponse.redirect(loginUrl);
     }
 
     if (user && isLoginPage) {

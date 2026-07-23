@@ -52,11 +52,11 @@ export async function GET(request) {
             const googleAccessToken = session.provider_token;   // Used to make direct Google API calls
             const googleRefreshToken = session.provider_refresh_token; // CRUCIAL: Used to refresh Google access background tasks            
 
-            console.log(`User: ${user}, email: ${email}, id: ${userId}`);
-            console.log('[Tokens Received]:', { googleAccessToken, googleRefreshToken });
+            // console.log(`User: ${user}, email: ${email}, id: ${userId}`);
+            // console.log('[Tokens Received]:', { googleAccessToken, googleRefreshToken });
 
             const { code: status } = await linkGoogleAccount({ googleEmail: email, accessToken: googleAccessToken, refreshToken: googleRefreshToken, expiresAt: googleAccessTokenExpiresAt });
-            console.log('linkGoogleAccount.status: ', status);
+            // console.log('linkGoogleAccount.status: ', status);
 
             // // 3. CAPTURE & UPDATE DATABASE BEFORE REDIRECTING
             // // You can upsert the user details into your custom public.users or public.profiles table
