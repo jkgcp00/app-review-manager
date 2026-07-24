@@ -11,7 +11,7 @@ export async function GET(request) {
     const code = requestUrl.searchParams.get('code')
 
     // You can pass a fallback or dynamic return path, e.g., /dashboard
-    const next = requestUrl.searchParams.get('next') ?? '/dashboard'
+    const next = requestUrl.searchParams.get('next') ?? '/'
 
     if (code) {
         const cookieStore = await cookies()

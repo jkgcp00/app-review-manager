@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { createAdminClient, getSupabaseClient } from './supabase';
 import { GoogleGenAI, Type } from '@google/genai';
 import { delay, getRating } from '../utils';
+import { revalidatePath } from 'next/cache';
 
 // const initiateGoogleAuth = async () => {
 
@@ -978,4 +979,11 @@ async function fetchRecentReviews({ google_account_id, accountId, locationId }) 
     }
 
     return reviews;
+}
+
+
+export async function logOut() {
+    const supabase = await getSupabaseClient();
+    await supabase.auth.signOut();
+    revalidatePath('/login', 'layout')
 }

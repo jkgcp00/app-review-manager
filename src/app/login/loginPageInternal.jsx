@@ -33,6 +33,18 @@ export default function LoginPageInternal() {
     const [otp, setOtp] = useState("");
     const [isLoading, setIsLoading] = useState(false);
 
+    const getURL = () => {
+        let url =
+            process.env.NEXT_PUBLIC_SITE_URL ?? // Set this to https://smbflo.com in prod env
+            process.env.NEXT_PUBLIC_VERCEL_URL ?? // Automatically sets for preview environments
+            'http://localhost:3000/'
+
+        // Make sure to include the protocol and trailing slash
+        url = url.startsWith('http') ? url : `https://${url}`
+        url = url.endsWith('/') ? url : `${url}/`
+        return url
+    }
+
     async function handleGoogleLogin() {
         try {
             const { data, error } = await supabase.auth.signInWithOAuth({
@@ -44,7 +56,8 @@ export default function LoginPageInternal() {
                     },
                     scopes: 'https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/business.manage',
                     // redirectTo: `${window.location.origin}/auth/callback?next=/`,
-                    redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`,
+                    // redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`,
+                    redirectTo: `${getURL()}auth/callback`,
                 }
             });
 
