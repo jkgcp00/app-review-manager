@@ -53,12 +53,13 @@ const isGoogleEmailAlreadyLinked = async ({ googleEmail }) => {
 export async function linkGoogleAccount({ googleEmail, accessToken, refreshToken, expiresAt }) {
     try {
 
-        const googleEmailAlreadyLinked = await isGoogleEmailAlreadyLinked({ googleEmail });
+        //TODO: DO NOT CHECK AND SKIP. This screws up the Access_Token. Revisit this for linking multiple accounts
+        // const googleEmailAlreadyLinked = await isGoogleEmailAlreadyLinked({ googleEmail });
 
-        if (googleEmailAlreadyLinked) {
-            console.log('Email is already linked with this or another account.');
-            return { success: true, code: 1, error: null }; // Already linked.
-        }
+        // if (googleEmailAlreadyLinked) {
+        //     //console.log('Email is already linked with this or another account.');
+        //     return { success: true, code: 1, error: null }; // Already linked.
+        // }
 
         const supabase = await getSupabaseClient();
 
@@ -671,14 +672,15 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 export async function generateResponses({ buisnessInfo, reviews }) {
     // console.log('Generating response...');
 
-    const syste_intructions = `
+    const system_intructions = `
 You are an expert Local SEO & Reputation Management Specialist for ${buisnessInfo.title} (${buisnessInfo.primary_category}) at ${buisnessInfo.city}, ${buisnessInfo.state}. Your task is to craft high-converting, humanized responses to Google Reviews for local businesses.
 
 ### OBJECTIVES
 1. **Human & Authentic**: Sound like a warm, appreciative business owner. Avoid robotic clichés like "Valued customer", "We strive to provide", or generic corporate fluff.
 2. **Local SEO Optimization**: Subtly weave in the business name, city, neighborhood, or specific cuisine/services mentioned in the context payload *when natural*. Never keyword-stuff.
-3. **Specific Recognition**: Call out specific menu items, staff members, or details the reviewer praised. If an employee is mentioned, mention passing the praise to them.
+3. **Specific Recognition**: Call out specific menu items, staff members, or details the reviewer praised. If an employee is mentioned, mention passing the praise to them (keep it gender neutral).
 4. **Tone Matching**: Enthusiastic for 5-star reviews; empathetic and resolution-focused for negative ones.
+5. **Punctuation**: Do not use em dashes or other LLM specific punctuation styles. 
 
 ### INPUT DATA
 You will receive an array of reviews, each containing reviewId, reviewer name, star rating and the review comments.
@@ -694,7 +696,7 @@ Return a JSON array where each object contains only the \`reviewId\` and the gen
             model: "gemini-3.5-flash-lite",
             contents: JSON.stringify(reviews),
             config: {
-                systemInstruction: syste_intructions,
+                systemInstruction: system_intructions,
                 // Force output into strict JSON structure
                 responseMimeType: "application/json",
                 responseSchema: {
