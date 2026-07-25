@@ -248,7 +248,7 @@ const SamplePage_client = ({ businessInfo, recentReviews }) => {
                                                                 reviewReplies[review.reviewId]?.state === POSTED ?
                                                                     (<>
                                                                         <CircleCheckBig className="h-3.5 w-3.5" />
-                                                                        Postes to Google
+                                                                        Posted to Google
                                                                     </>)
                                                                     : reviewReplies[review.reviewId]?.state === FAILED ?
                                                                         (<>
