@@ -726,22 +726,22 @@ Return a JSON array where each object contains only the \`reviewId\` and the gen
 
         // console.log('NEW Response: ', parsedOutput);
 
-        /// FAKE DATA
+        //  FAKE DATA
         // const parsedOutput = [
         //     {
-        //         reviewId: 'AbFvOqn-VRavh2NEoR8BnOdXfp_e0tLxxEprCFYUrEcGZ89vKw9vpVJwRju8Vh0Gi4IEi6oOKMvs',
-        //         response: 'Thank you so much for the wonderful review, Francoise! We are thrilled you enjoyed the food and loved the atmosphere. Hope to welcome you back soon!'
+        //         reviewId: 'AbFvOqnfoEkjdaZjububQY9waQO4fFLBRNtidpaFJsPjikIXzdnmpflaKVDrpYe4dXFfxHUxrCkejw',
+        //         response: 'Hello Sowmya. Thank you for sharing your feedback with us. We are sorry to hear that the buffet did not meet your expectations and that you felt the food lacked freshness. We take great pride in our Indian cuisine at Bombay Grove Indian Kitchen + Bar, and we will certainly review our recipes and preparation standards with the culinary team. We hope you will give us another chance in the future to provide a much better dining experience.'
         //     },
         //     {
-        //         reviewId: 'AbFvOqkM7Z8uAXyHRV3X_GT3FsG098_Xgy6RSw8yJ6dPPTGtTeAuL7yvnNJyMskyYoieJuI4TtU9',
-        //         response: 'Thanks a ton, Theo! We will definitely pass along your kind words and a huge shoutout to Manny. We love keeping things fun and are so glad you enjoyed the great food and service!'
+        //         reviewId: 'AbFvOqlUBJKAqIP_vP_TGLI3e2keb9cKkjGisbcMKXl2z2SyFQoWxR0gaShzM0UhMnTUfYsTsPMj',
+        //         response: 'Hi Sonal. Thank you so much for the wonderful review. We are thrilled to hear you enjoyed the food and that Steve took such great care of you. I will be sure to pass along your kind words to Steve. We cannot wait to welcome you back to Bombay Grove Indian Kitchen + Bar soon.'
         //     },
         //     {
-        //         reviewId: 'AbFvOqnUiMUOuaYReb1swWrjDzhKX43V0jLaHdBM9Qyh1T6K-PUKxKgIGReXuUfs92ahFxYdbTHhgg',
-        //         response: 'Wow, Khushboo, thank you for such an incredible compliment! Hearing that we are the best Indian restaurant on the east coast of Florida truly makes our day. Starting off with our spinach chaat is always a great choice, and we are so honored that you are willing to drive an hour just to dine with us. We cannot wait to welcome you back for your next craving!'
+        //         reviewId: 'AbFvOqnYQDE1-XtbX_PwN-IcnmLlWLXNioXtOCIGnU98AdwuDSUMFRrskwGQhzno6pFW-HRR6SZCEA',
+        //         response: 'Hello Ansh. Thank you for the fantastic 5 star rating. We are so glad you loved our appetizers and overall food selection. Steve will be very happy to hear your kind compliments. We look forward to seeing you again soon at Bombay Grove Indian Kitchen + Bar.'
         //     }
         // ]
-        // await delay(5000);
+        // await delay(500);
 
 
         return parsedOutput;
@@ -895,6 +895,7 @@ async function fetchReviewSummary({ placeId }) {
 
 async function fetchRecentReviews({ google_account_id, accountId, locationId }) {
 
+
     var reviews = null;
 
     try {
@@ -907,7 +908,7 @@ async function fetchRecentReviews({ google_account_id, accountId, locationId }) 
         }
 
         const reviewUrl = new URL(
-            `https://mybusiness.googleapis.com/v4/accounts/${accountId}/locations/${locationId}/reviews?pageSize=3&orderBy=updateTime%20desc`
+            `https://mybusiness.googleapis.com/v4/accounts/${accountId}/locations/${locationId}/reviews?pageSize=50&orderBy=updateTime%20desc`
         );
 
         const response = await fetch(reviewUrl.toString(),
@@ -934,6 +935,10 @@ async function fetchRecentReviews({ google_account_id, accountId, locationId }) 
         }
         const revdata = await response.json();
         reviews = revdata.reviews || [];
+
+        const unrepliedReviews = reviews.filter(review => !review.reviewReply).slice(0, 5);
+
+        return unrepliedReviews;
 
         // FAKE DATA
         // reviews = [
@@ -1114,6 +1119,80 @@ export async function readRegistration({ accountId }) {
         return responseData;
     } catch (error) {
         console.error("Error in getGoogleReviewWebhookSetting:", error);
+        throw error;
+    }
+}
+
+export async function postReviewReply({ accountId, locationId, reviewId, replyText }) {
+    //1. Get Supabase client
+    const supabase = await getSupabaseClient();
+
+    //2. Confirm the accountId and locationId belongs to current user
+    const { data: accountData, error: accountDataError } = await supabase.from('businesses').select('id, google_account_id').eq('google_business_id', `accounts/${accountId}`).single();
+    if (accountDataError) {
+        console.log(`ERR: postReviewRepl - while getting account for accountId ${accountId} locationId ${locationId}`);
+        return;
+    }
+
+    // console.log(`google_account_id: ${accountData.google_account_id}`);
+    const access_token = await refreshGoogleAccessTokenIfNeededById({ google_account_id: accountData.google_account_id });
+    // console.log('Got access token.');
+
+    //3. Try posting the reply
+    try {
+        const response = await fetch(
+            `https://mybusiness.googleapis.com/v4/accounts/${accountId}/locations/${locationId}/reviews/${reviewId}/reply`,
+            {
+                method: "PUT",
+                headers: {
+                    Authorization: `Bearer ${access_token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    comment: replyText
+                }),
+            }
+        );
+
+        // 1. Read the raw text once regardless of status
+        const rawText = await response.text();
+
+        // 2. Parse JSON safely from string
+        let responseData = {};
+        try {
+            responseData = rawText ? JSON.parse(rawText) : {};
+        } catch {
+            responseData = { rawBody: rawText };
+        }
+
+        if (!response.ok) {
+            responseData.success = false;
+            console.error("Post Reply Failed:", {
+                accountId: accountId,
+                locationId: locationId,
+                reviewId: reviewId,
+                status: response.status,
+                statusText: response.statusText,
+                details: responseData,
+            });
+
+            const googleMessage =
+                responseData?.error?.message ||
+                responseData?.error_description ||
+                `HTTP Error ${response.status}: ${response.statusText}`;
+
+            throw new Error(`Post Reply Failed: ${googleMessage}`);
+        } else {
+            responseData.success = true;
+            console.log(`Reply posted successfully for accountId ${accountId} loctionId ${locationId} reviewId ${reviewId}`);
+        }
+
+        console.log('Returning responseData: ', JSON.stringify(responseData));
+        return responseData;
+        // delay(2000);
+        // return { comment: replyText, success: true};
+    } catch (error) {
+        console.error(`Error inside postReviewReply accountId ${accountId} loctionId ${locationId} reviewId ${reviewId} - ${error}`);
         throw error;
     }
 }

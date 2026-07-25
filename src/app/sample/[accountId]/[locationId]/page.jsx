@@ -17,10 +17,11 @@ const Sample_server = async ({ params }) => {
 }
 
 const SamplePage_Server = async ({ accountId, locationId }) => {
-    await delay(3000);
     const businessAndReviewDetails = await readSampleReviews({ accountId: accountId, locationId: locationId });
 
     const businessInfo = {
+        accountId: accountId,
+        locationId: locationId,
         title: businessAndReviewDetails?.location?.title,
         primary_category: businessAndReviewDetails?.location?.primary_category,
         storefrontAddress: businessAndReviewDetails?.location?.storefrontAddress,
@@ -30,8 +31,10 @@ const SamplePage_Server = async ({ accountId, locationId }) => {
 
     return(
     // <div>
-    //     <p>{JSON.stringify(businessInfo)}</p>
-    //     <p>{JSON.stringify(recentReviews)}</p>
+    //     <p>AccountId: {accountId}</p>
+    //     <p>LocationId: {locationId}</p>
+    //     <p>Business Info: {JSON.stringify(businessInfo)}</p>
+    //     <p>Recent Reviews: {JSON.stringify(recentReviews)}</p>
     // </div>
     <SamplePage_client businessInfo={businessInfo} recentReviews={recentReviews} />
     );
