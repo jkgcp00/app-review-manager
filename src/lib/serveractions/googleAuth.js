@@ -987,3 +987,131 @@ export async function logOut() {
     await supabase.auth.signOut();
     revalidatePath('/login', 'layout')
 }
+
+// lib/google-notifications.js
+export async function registerGoogleReviewWebhook({ accountId }) {
+    const topicName = "projects/smbflo-review-manager-502402/topics/gbp-reviews-topic";//"projects//topics/google-reviews-topic";
+
+    console.log('Inside registerGoogleReviewWebhook');
+
+    //1. Get Supabase client
+    const supabase = await getSupabaseClient();
+
+    //2. Confirm the accountId and locationId belongs to current user
+    const { data: accountData, error: accountDataError } = await supabase.from('businesses').select('id, google_account_id, business_name').eq('google_business_id', `accounts/${accountId}`).single();
+    if (accountDataError) {
+        console.log(`ERR: registerGoogleReviewWebhook. While getting account - accountId ${accountId} locationId ${locationId}`);
+        return;
+    }
+
+    console.log(`google_account_id: ${accountData.google_account_id}`);
+    const access_token = await refreshGoogleAccessTokenIfNeededById({ google_account_id: accountData.google_account_id });
+
+    console.log('Got access token.');
+
+    try {
+        const response = await fetch(
+            `https://mybusinessnotifications.googleapis.com/v1/accounts/${accountId}/notificationSetting?updateMask=pubsubTopic,notificationTypes`,
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${access_token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    pubsubTopic: topicName,
+                    notificationTypes: ["NEW_REVIEW", "UPDATED_REVIEW"],
+                }),
+            }
+        );
+
+        // 1. Read the raw text once regardless of status
+        const rawText = await response.text();
+
+        // 2. Parse JSON safely from string
+        let responseData = {};
+        try {
+            responseData = rawText ? JSON.parse(rawText) : {};
+        } catch {
+            responseData = { rawBody: rawText };
+        }
+
+        if (!response.ok) {
+            console.error("Google Notification Setup Failed:", {
+                status: response.status,
+                statusText: response.statusText,
+                details: responseData,
+            });
+
+            const googleMessage =
+                responseData?.error?.message ||
+                responseData?.error_description ||
+                `HTTP Error ${response.status}: ${response.statusText}`;
+
+            throw new Error(`Google Notification Registration Failed: ${googleMessage}`);
+        }
+
+        return responseData;
+    } catch (error) {
+        console.error("Error inside registerGoogleReviewWebhook:", error);
+        throw error;
+    }
+}
+
+export async function readRegistration({ accountId }) {
+
+    // const formattedAccountId = accountId.replace(/^accounts\//, "");
+    const url = `https://mybusinessnotifications.googleapis.com/v1/accounts/${accountId}/notificationSetting`;
+
+    try {
+
+        console.log('Inside readRegistration');
+
+        //1. Get Supabase client
+        const supabase = await getSupabaseClient();
+
+        //2. Confirm the accountId and locationId belongs to current user
+        const { data: accountData, error: accountDataError } = await supabase.from('businesses').select('id, google_account_id, business_name').eq('google_business_id', `accounts/${accountId}`).single();
+        if (accountDataError) {
+            console.log(`ERR: registerGoogleReviewWebhook. While getting account - accountId ${accountId} locationId ${locationId}`);
+            return;
+        }
+
+        console.log(`google_account_id: ${accountData.google_account_id}`);
+        const access_token = await refreshGoogleAccessTokenIfNeededById({ google_account_id: accountData.google_account_id });
+
+        console.log('Got access token.');
+
+        const response = await fetch(url, {
+            method: "GET",
+            headers: {
+                Authorization: `Bearer ${access_token}`,
+                "Content-Type": "application/json",
+            },
+        });
+
+        const rawText = await response.text();
+        let responseData = {};
+
+        try {
+            responseData = rawText ? JSON.parse(rawText) : {};
+        } catch {
+            responseData = { rawBody: rawText };
+        }
+
+        if (!response.ok) {
+            console.error("Failed to fetch notification settings:", {
+                status: response.status,
+                details: responseData,
+            });
+            throw new Error(`Google Notification Get Failed: ${responseData?.error?.message || response.statusText}`);
+        }
+
+        console.log('Final response: ', responseData);
+
+        return responseData;
+    } catch (error) {
+        console.error("Error in getGoogleReviewWebhookSetting:", error);
+        throw error;
+    }
+}
