@@ -122,7 +122,7 @@ async function refreshGoogleAccessTokenIfNeeded({ google_email }) {
         return; // Token is still fresh
     }
 
-    console.log('Renewing token...');
+    // console.log('Token is NOT fresh, renewing token...');
 
     /* STREAMING_CHUNK: Fetching Fresh Tokens from Google OAuth... */
     // 2. Token is expired or expiring soon, request a fresh one from Google
@@ -139,9 +139,11 @@ async function refreshGoogleAccessTokenIfNeeded({ google_email }) {
 
     if (!response.ok) {
         const errText = await response.text();
+        console.log(`refreshGoogleAccessTokenIfNeeded: response not ok. Error: ${errText}`);
         throw new Error(`Failed to rotate Google OAuth access token: ${errText}`);
     }
 
+    // console.log(`Token renewed.`)
     const tokenData = await response.json();
     const newExpiresAt = new Date(Date.now() + tokenData.expires_in * 1000).toISOString();
 
@@ -157,9 +159,10 @@ async function refreshGoogleAccessTokenIfNeeded({ google_email }) {
         })
         .eq('google_email', google_email);
 
-    console.log('Updated new token');
+    // console.log('Updated new token');
 
     if (updateError) {
+        console.log(`refreshGoogleAccessTokenIfNeeded: Failed to update fresh access token in database: ${updateError.message}`)
         throw new Error(`Failed to update fresh access token in database: ${updateError.message}`);
     }
 }
@@ -190,7 +193,7 @@ export async function syncAllLinkedAccounts() {
         }
 
     } catch (error) {
-        console.error("Error in discoverAndSyncGoogleLocations:", error.message);
+        console.error("Error in syncAllLinkedAccounts:", error.message);
     }
 
     return accountRecords;
@@ -226,7 +229,7 @@ export async function loadGoogleLocationsFromDB() {
         }
 
     } catch (error) {
-        console.error("Error in discoverAndSyncGoogleLocations:", error.message);
+        console.error("Error in loadGoogleLocationsFromDB:", error.message);
     }
 
     // console.log('ACCOUNT_RECORDS: ', JSON.stringify(accountRecords));
@@ -300,7 +303,7 @@ async function loadBusinessesAndLocationsFromDB({ linked_google_account_id }) {
         // console.log('ALL BUSSINESSES: ', JSON.stringify(business));
 
     } catch (error) {
-        console.error("Error in discoverAndSyncGoogleLocations:", error.message);
+        console.error("Error in loadBusinessesAndLocationsFromDB:", error.message);
     }
 
     return businesses;
@@ -319,6 +322,7 @@ async function discoverAndSyncGoogleLocations({ id, google_email }) {
 
         // 1. Rotate credentials if necessary
         await refreshGoogleAccessTokenIfNeeded({ google_email });
+        // console.log('Done with refreshGoogleAccessTokenIfNeeded');
 
         // 2. Get the updated access token
         const { data: account, error: fetchError } = await supabase
@@ -331,6 +335,8 @@ async function discoverAndSyncGoogleLocations({ id, google_email }) {
             throw new Error("Unable to retrieve valid Google access token.");
         }
 
+        // console.log(`Got token from DB:  ${account.access_token}`);
+
         /* STREAMING_CHUNK: Querying Google Accounts Endpoint... */
         // 3. Query Google Business Profile Accounts list
         const accountsResponse = await fetch('https://mybusinessaccountmanagement.googleapis.com/v1/accounts', {
@@ -339,12 +345,14 @@ async function discoverAndSyncGoogleLocations({ id, google_email }) {
 
         if (!accountsResponse.ok) {
             const errorText = await accountsResponse.text();
+            console.log(`accountsResponse not ok. Error: ${errorText}`);
             throw new Error(`Google Accounts API error: ${errorText}`);
         }
 
         const accountsData = await accountsResponse.json();
         const googleAccounts = accountsData.accounts || [];
 
+        // console.log(`Google Accounts: ${JSON.stringify(googleAccounts)}`);
         // let totalLocationsSynced = 0;
 
         /* STREAMING_CHUNK: Querying Storefront Locations... */
